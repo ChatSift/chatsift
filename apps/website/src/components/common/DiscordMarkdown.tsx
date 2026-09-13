@@ -271,6 +271,7 @@ const renderers: Renderers = {
 	paragraph: ParagraphRenderer,
 	quote: QuoteRenderer,
 	small: SmallRenderer,
+	spoiler: SpoilerRenderer,
 	strikethrough: StrikethroughRenderer,
 	text: TextRenderer,
 	timestamp: TimestampRenderer,

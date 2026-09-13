@@ -20,13 +20,13 @@
 	},
 	"devDependencies": {
 		"@chatsift/db": "workspace:^",
-		"@types/node": "^24.9.1",
+		"@types/node": "^24.13.4",
 		"typescript": "~6.0.3",
-		"vitest": "^4.1.10"
+		"vitest": "^4.1.11"
 	},
 	"dependencies": {
 		"@sapphire/bitfield": "^1.2.4",
-		"discord-api-types": "^0.38.50",
+		"discord-api-types": "^0.38.55",
 		"murmurhash": "^2.0.1"
 	}
 }

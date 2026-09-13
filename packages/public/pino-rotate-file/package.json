@@ -35,11 +35,11 @@
 	},
 	"homepage": "https://github.com/chatsift/chatsift",
 	"devDependencies": {
-		"@types/node": "^24.9.1",
-		"sonic-boom": "^5.0.0",
+		"@types/node": "^24.13.4",
+		"sonic-boom": "^5.0.1",
 		"tsup": "^8.5.1",
 		"typescript": "~6.0.3",
-		"vitest": "^4.1.10"
+		"vitest": "^4.1.11"
 	},
 	"dependencies": {
 		"pino": "^10.3.1",

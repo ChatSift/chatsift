@@ -20,10 +20,10 @@
 	},
 	"devDependencies": {
 		"@chatsift/core": "workspace:^",
-		"@types/node": "^24.9.1",
-		"@vitest/coverage-v8": "^4.1.10",
+		"@types/node": "^24.13.4",
+		"@vitest/coverage-v8": "^4.1.11",
 		"typescript": "~6.0.3",
-		"vitest": "^4.1.10"
+		"vitest": "^4.1.11"
 	},
 	"dependencies": {
 		"@chatsift/backend-core": "workspace:^",

@@ -26,13 +26,13 @@
 		"tag-docker": "docker buildx imagetools create -t ${IMAGE_REPO}:${IMAGE_CHANNEL}-migrate ${IMAGE_REPO}:${IMAGE_CHANNEL}-${GITHUB_SHA}"
 	},
 	"devDependencies": {
-		"@electric-sql/pglite": "^0.5.4",
-		"@kristiandupont/recase": "^1.2.1",
-		"@types/node": "^24.9.1",
-		"kanel": "^4.0.2",
+		"@electric-sql/pglite": "^0.5.8",
+		"@kristiandupont/recase": "^1.4.1",
+		"@types/node": "^24.13.4",
+		"kanel": "^4.0.4",
 		"rimraf": "^6.1.3",
 		"typescript": "~6.0.3",
-		"vitest": "^4.1.10"
+		"vitest": "^4.1.11"
 	},
 	"dependencies": {
 		"postgres": "^3.4.9"

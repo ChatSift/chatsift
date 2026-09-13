@@ -13,9 +13,9 @@
 		"tag-docker": "docker buildx imagetools create -t ${IMAGE_REPO}:${IMAGE_CHANNEL}-social ${IMAGE_REPO}:${IMAGE_CHANNEL}-${GITHUB_SHA}"
 	},
 	"devDependencies": {
-		"@types/node": "^24.9.1",
+		"@types/node": "^24.13.4",
 		"typescript": "~6.0.3",
-		"vitest": "^4.1.10"
+		"vitest": "^4.1.11"
 	},
 	"dependencies": {
 		"@chatsift/backend-core": "workspace:^",

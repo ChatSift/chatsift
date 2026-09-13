@@ -15,9 +15,9 @@
 		"tag-docker": "docker buildx imagetools create -t ${IMAGE_REPO}:${IMAGE_CHANNEL}-modmail ${IMAGE_REPO}:${IMAGE_CHANNEL}-${GITHUB_SHA}"
 	},
 	"devDependencies": {
-		"@types/node": "^24.9.1",
+		"@types/node": "^24.13.4",
 		"typescript": "~6.0.3",
-		"vitest": "^4.1.10"
+		"vitest": "^4.1.11"
 	},
 	"dependencies": {
 		"@chatsift/backend-core": "workspace:^",
@@ -31,7 +31,7 @@
 		"@sapphire/async-queue": "^1.5.5",
 		"@sapphire/discord-utilities": "^4.0.0",
 		"bin-rw": "^0.2.0",
-		"nanoid": "^6.0.0",
+		"nanoid": "^6.0.1",
 		"prom-client": "^15.1.3"
 	}
 }
