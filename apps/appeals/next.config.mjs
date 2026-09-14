@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
 	reactStrictMode: true,
+	supportsImmutableAssets: false,
 	// Same reason as `apps/website`: `@chatsift/web-core` ships raw TS/TSX rather than a build, so Next compiles
 	// each of its modules individually, which is what keeps every file's own `'use client'` boundary intact.
 	transpilePackages: ['@chatsift/web-core'],

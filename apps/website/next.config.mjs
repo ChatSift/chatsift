@@ -10,6 +10,7 @@ const hasUploadToken = Boolean(process.env.SENTRY_AUTH_TOKEN);
 /** @type {import('next').NextConfig} */
 const nextConfig = {
 	reactStrictMode: true,
+	supportsImmutableAssets: false,
 	// `@chatsift/web-core` ships raw TS/TSX rather than a build, so Next compiles each of its modules
 	// individually -- which is what keeps every file's own `'use client'` boundary intact. A bundled dist
 	// would collapse them onto a single directive and drag `api/fetch.ts`'s SSR branch, which dynamically
