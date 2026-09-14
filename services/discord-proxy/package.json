@@ -21,6 +21,6 @@
 	},
 	"dependencies": {
 		"@chatsift/backend-core": "workspace:^",
-		"@discordjs/rest": "3.0.0-dev.1783513686-6e81ea771"
+		"@discordjs/rest": "3.0.0-dev.1789257813-c626815bf"
 	}
 }

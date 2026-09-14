@@ -55,7 +55,6 @@ async function shutdown(signal: string): Promise<void> {
 	await sleep(DRAIN_GRACE_MS);
 	await runRegisteredSteps();
 
-	// TODO: discord.js PR
 	try {
 		await Promise.all([redis.quit(), db.end({ timeout: 2 })]);
 	} catch (error) {

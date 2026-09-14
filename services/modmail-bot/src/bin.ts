@@ -41,7 +41,7 @@ const botId = getGuildListKey();
 const rest = createBotRest({ botId: 'MODMAIL', register, token });
 startMetricsServer({ port: ENV.MODMAIL_METRICS_PORT, register });
 
-const gateway = await createBotGateway({
+const { gateway, gatewayInformation } = await createBotGateway({
 	botId,
 	token,
 	intents:
@@ -56,4 +56,4 @@ const client = createBotClient({ botId, gateway, register, rest });
 setServiceValue('client', client);
 
 await bin(client);
-await gateway.connect();
+await gateway.connect({ gatewayInformation });

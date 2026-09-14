@@ -3,13 +3,22 @@ import { ENV, getContext } from '@chatsift/backend-core';
 import type { GatewayIntentBits, RESTGetAPIGatewayBotResult } from '@discordjs/core';
 import { Routes } from '@discordjs/core';
 import type { REST } from '@discordjs/rest';
-import { CompressionMethod, WebSocketManager, WebSocketShardEvents } from '@discordjs/ws';
+import { CloseCodes, CompressionMethod, WebSocketManager, WebSocketShardEvents } from '@discordjs/ws';
 import { Gauge, type Registry } from 'prom-client';
 import { createRedisIdentifyThrottler } from './identifyThrottler.js';
 import { claimReplicaSlot } from './replica.js';
-import { retrieveSessionInfo, startSessionStore, updateSessionInfo } from './sessions.js';
+import { flushSessions, retrieveSessionInfo, startSessionStore, updateSessionInfo } from './sessions.js';
 import { forgetShardHeartbeat, getShardHeartbeat, recordShardHeartbeat } from './shardHealth.js';
 import { onShutdown } from './shutdown.js';
+
+export interface BotGateway {
+	readonly gateway: WebSocketManager;
+	/**
+	 * The `/gateway/bot` payload this gateway was built from. Handed straight back to
+	 * {@link WebSocketManager.connect}, which is what lets one boot get by on a single fetch (discordjs/discord.js#11602).
+	 */
+	readonly gatewayInformation: RESTGetAPIGatewayBotResult;
+}
 
 export interface CreateBotGatewayOptions {
 	readonly botId: GuildListKey;
@@ -75,12 +84,13 @@ export async function createBotGateway({
 	register,
 	rest,
 	token,
-}: CreateBotGatewayOptions): Promise<WebSocketManager> {
+}: CreateBotGatewayOptions): Promise<BotGateway> {
 	startSessionStore(botId);
 
-	// Fetched here rather than left to the manager because the shard count is an *input* to the claim below --
-	// this replica cannot know which slice is its own until it knows how many there are. The manager fetches it
-	// again for itself, which is one extra request once per boot.
+	// Fetched here because the shard count is an *input* to the claim below -- this replica cannot know which
+	// slice is its own until it knows how many there are. Since discordjs/discord.js#11602 the manager takes this
+	// payload in `connect` instead of refetching it, so the one fetch now serves the claim, the throttler and the
+	// connection alike.
 	const gatewayInformation = (await rest.get(Routes.gatewayBot())) as RESTGetAPIGatewayBotResult;
 	const shardCount = gatewayInformation.shards;
 	const { shardIds } = await claimReplicaSlot({
@@ -92,17 +102,18 @@ export async function createBotGateway({
 	const gateway = new WebSocketManager({
 		token,
 		intents,
-		fetchGatewayInformation: async () => rest.get(Routes.gatewayBot()) as Promise<RESTGetAPIGatewayBotResult>,
 		compression: CompressionMethod.ZlibNative,
 		shardCount,
 		shardIds,
 		retrieveSessionInfo,
 		updateSessionInfo,
-		buildIdentifyThrottler: async (manager) =>
-			createRedisIdentifyThrottler(
-				botId,
-				(await manager.fetchGatewayInformation()).session_start_limit.max_concurrency,
-			),
+		buildIdentifyThrottler: async () =>
+			createRedisIdentifyThrottler(botId, gatewayInformation.session_start_limit.max_concurrency),
+	});
+
+	onShutdown('gateway', async () => {
+		await gateway.destroy({ code: CloseCodes.Resuming });
+		await flushSessions();
 	});
 
 	if (register) {
@@ -123,5 +134,5 @@ export async function createBotGateway({
 		.on(WebSocketShardEvents.Ready, (data, shardId) => getContext().logger.debug({ data, shardId }, 'Shard READY'))
 		.on(WebSocketShardEvents.Resumed, (shardId) => getContext().logger.debug({ shardId }, 'Shard RESUMED'));
 
-	return gateway;
+	return { gateway, gatewayInformation };
 }

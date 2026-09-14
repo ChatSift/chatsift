@@ -29,7 +29,7 @@ registerShutdownHandlers();
 const rest = createBotRest({ botId: 'APPEALS', register, token: ENV.APPEALS_BOT_TOKEN });
 startMetricsServer({ port: ENV.APPEALS_METRICS_PORT, register });
 
-const gateway = await createBotGateway({
+const { gateway, gatewayInformation } = await createBotGateway({
 	botId: 'APPEALS',
 	token: ENV.APPEALS_BOT_TOKEN,
 	intents: GatewayIntentBits.Guilds | GatewayIntentBits.GuildModeration,
@@ -41,4 +41,4 @@ const client = createBotClient({ botId: 'APPEALS', gateway, register, rest });
 setServiceValue('client', client);
 
 await bin(client);
-await gateway.connect();
+await gateway.connect({ gatewayInformation });

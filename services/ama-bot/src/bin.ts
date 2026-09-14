@@ -34,7 +34,7 @@ await loadExperiments();
 const rest = createBotRest({ botId: 'AMA', register, token: ENV.AMA_BOT_TOKEN });
 startMetricsServer({ port: ENV.AMA_METRICS_PORT, register });
 
-const gateway = await createBotGateway({
+const { gateway, gatewayInformation } = await createBotGateway({
 	botId: 'AMA',
 	token: ENV.AMA_BOT_TOKEN,
 	intents: GatewayIntentBits.Guilds,
@@ -44,4 +44,4 @@ const gateway = await createBotGateway({
 setServiceValue('client', createBotClient({ botId: 'AMA', gateway, register, rest }));
 
 await bin();
-await gateway.connect();
+await gateway.connect({ gatewayInformation });

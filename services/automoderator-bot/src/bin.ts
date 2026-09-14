@@ -32,7 +32,7 @@ await loadExperiments();
 const rest = createBotRest({ botId: 'AUTOMODERATOR', register, token: ENV.AUTOMODERATOR_BOT_TOKEN });
 startMetricsServer({ port: ENV.AUTOMODERATOR_METRICS_PORT, register });
 
-const gateway = await createBotGateway({
+const { gateway, gatewayInformation } = await createBotGateway({
 	botId: 'AUTOMODERATOR',
 	token: ENV.AUTOMODERATOR_BOT_TOKEN,
 	// `GuildMembers` and `MessageContent` are **privileged** and must be enabled on the application in
@@ -54,4 +54,4 @@ const client = createBotClient({ botId: 'AUTOMODERATOR', gateway, register, rest
 setServiceValue('client', client);
 
 await bin(client);
-await gateway.connect();
+await gateway.connect({ gatewayInformation });
