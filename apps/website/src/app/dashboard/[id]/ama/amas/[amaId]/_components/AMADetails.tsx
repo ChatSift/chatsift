@@ -20,8 +20,7 @@ import { PromptModeToggle } from '../../_components/PromptModeToggle';
 import { PromptPreview } from '../../_components/PromptPreview';
 import { AuthorAvatar } from '../questions/_components/AuthorAvatar';
 import { userLabel } from '../questions/_components/userLabel';
-import { StatChip } from './StatChip';
-import { QUESTION_STATE_TILES, valenceClass } from './questionStateTiles';
+import { QUESTION_STATE_TILES } from './questionStateTiles';
 import type { AMAStats, PossiblyMissingChannelInfo, UpdateAMABody } from '@/api/routes/ama';
 import {
 	invalidateAMAQuestions,
@@ -34,6 +33,10 @@ import {
 import type { GuildChannelInfo } from '@/api/routes/guilds';
 import { useGuildInfo } from '@/api/routes/guilds';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
+import { StatChip } from '@/components/stats/StatChip';
+import { StatChipRow } from '@/components/stats/StatChipRow';
+import { StatTile } from '@/components/stats/StatTile';
+import { StatTileGrid } from '@/components/stats/StatTileGrid';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useGuildAccess } from '@/hooks/useGuildAccess';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
@@ -648,54 +651,37 @@ export function AMADetails() {
 						<Skeleton className="h-24 w-full" />
 					) : stats ? (
 						<div className="flex flex-col gap-6">
-							<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
-								<div className="rounded-lg border border-on-secondary p-4 text-center dark:border-on-secondary-dark">
-									<p className="text-2xl font-semibold text-primary dark:text-primary-dark">{stats.total}</p>
-									<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">Total Questions</p>
-								</div>
-								<div className="rounded-lg border border-on-secondary p-4 text-center dark:border-on-secondary-dark">
-									<p className="text-2xl font-semibold text-primary dark:text-primary-dark">{stats.uniqueAskerCount}</p>
-									<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">Unique Askers</p>
-								</div>
+							<StatTileGrid columns={7}>
+								<StatTile label="Total Questions" value={stats.total} />
+								<StatTile label="Unique Askers" value={stats.uniqueAskerCount} />
 								{/* "Duplicates", not "Merged Duplicates" -- at lg:grid-cols-7 the longer label is the only one
 							that wraps to two lines, and a grid row stretches every other tile to match it. */}
-								<div className="rounded-lg border border-on-secondary p-4 text-center dark:border-on-secondary-dark">
-									<p className="text-2xl font-semibold text-primary dark:text-primary-dark">
-										{stats.mergedDuplicatesCount}
-									</p>
-									<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">Duplicates</p>
-								</div>
+								<StatTile label="Duplicates" value={stats.mergedDuplicatesCount} />
 								{QUESTION_STATE_TILES.map(({ state, label, valence }) => (
-									<div
-										className="rounded-lg border border-on-secondary p-4 text-center dark:border-on-secondary-dark"
+									<StatTile
 										key={state}
-									>
-										<p className={`text-2xl font-semibold ${valenceClass[valence]}`}>
-											{stats.byState[state as keyof AMAStats['byState']]}
-										</p>
-										<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">{label}</p>
-									</div>
+										label={label}
+										valence={valence}
+										value={stats.byState[state as keyof AMAStats['byState']]}
+									/>
 								))}
-							</div>
+							</StatTileGrid>
 
 							{/* Chips rather than more tiles: tag count is unbounded, so a grid row would blow the card up
 						once a session has more than a handful. Each one deep-links into Triage pre-filtered to that
 						tag -- `?tag=` is exactly the param `useTagFilter` reads (QuestionTagFilter.tsx). */}
 							{stats.byTag.length > 0 && (
-								<div>
-									<h3 className="mb-2 text-sm font-medium text-primary dark:text-primary-dark">Questions by Tag</h3>
-									<div className="flex flex-wrap gap-2">
-										{stats.byTag.map((tag) => (
-											<Link
-												className="rounded-md transition-opacity hover:opacity-80"
-												href={`/dashboard/${params.id}/ama/amas/${params.amaId}/questions?tag=${tag.id}`}
-												key={tag.id}
-											>
-												<StatChip label={tag.name} value={tag.count} />
-											</Link>
-										))}
-									</div>
-								</div>
+								<StatChipRow title="Questions by Tag">
+									{stats.byTag.map((tag) => (
+										<Link
+											className="rounded-md transition-opacity hover:opacity-80"
+											href={`/dashboard/${params.id}/ama/amas/${params.amaId}/questions?tag=${tag.id}`}
+											key={tag.id}
+										>
+											<StatChip label={tag.name} value={tag.count} />
+										</Link>
+									))}
+								</StatChipRow>
 							)}
 						</div>
 					) : (

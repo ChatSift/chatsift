@@ -5,6 +5,7 @@ import type {
 	deleteUnappealableUserRoute,
 	getAppealRoute,
 	getAppealsConfigRoute,
+	getAppealsStatsRoute,
 	listAppealsRoute,
 	listUnappealableUsersRoute,
 	updateAppealsConfigRoute,
@@ -17,6 +18,9 @@ import { queryKeys } from '../queryClient';
 type GetAppealsConfigContract = InferRouteContract<typeof getAppealsConfigRoute>;
 export type AppealsConfig = GetAppealsConfigContract['response'];
 export type AppealQuestion = AppealsConfig['questions'][number];
+
+type GetAppealsStatsContract = InferRouteContract<typeof getAppealsStatsRoute>;
+export type AppealsStats = GetAppealsStatsContract['response'];
 
 type UpdateAppealsConfigContract = InferRouteContract<typeof updateAppealsConfigRoute>;
 export type UpdateAppealsConfigBody = UpdateAppealsConfigContract['body'];
@@ -153,5 +157,12 @@ export function useDecideAppeal(guildId: string, appealId: number) {
 		async onSuccess() {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.appeals.queue.all(guildId) });
 		},
+	});
+}
+
+export function useAppealsStats(guildId: string) {
+	return useQuery({
+		queryKey: queryKeys.appeals.stats(guildId),
+		queryFn: async () => apiFetch<AppealsStats>('get', `/v3/guilds/${guildId}/appeals/stats`),
 	});
 }

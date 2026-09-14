@@ -1,5 +1,6 @@
 import { Heading } from '@chatsift/web-core/components/Heading';
 import Link from 'next/link';
+import { AppealsStatsCard } from './_components/AppealsStatsCard';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 import { SvgAppeals } from '@/components/icons/SvgAppeals';
 import { APPEALS_SECTION_LIST } from '@/utils/appealsSections';
@@ -12,6 +13,7 @@ export default async function AppealsPage({ params }: PageProps<'/dashboard/[id]
 			<div className="flex flex-col gap-4">
 				<DashboardCrumbs />
 				<Heading subtitle="Configure Appeals for your server" title="Appeals Settings" />
+				<AppealsStatsCard />
 				{APPEALS_SECTION_LIST.map(({ segment, title, subtitle }) => (
 					<Link
 						className="flex items-center gap-4 rounded-lg border-[1px] border-on-secondary bg-card p-4 hover:bg-on-tertiary dark:border-on-secondary-dark dark:bg-card-dark dark:hover:bg-on-tertiary-dark"

@@ -1,4 +1,4 @@
-import type { AutomoderatorCaseAction } from '@chatsift/db';
+import type { AutomoderatorCaseAction, AutomoderatorReportState } from '@chatsift/db';
 
 /**
  * Kept as a literal tuple rather than derived from the enum at runtime: kanel generates
@@ -15,3 +15,9 @@ export const CASE_ACTIONS = [
 	'BAN',
 	'UNBAN',
 ] as readonly AutomoderatorCaseAction[];
+
+/**
+ * Mirrors `CREATE TYPE automoderator_report_state`, kept as a literal tuple for the same reason
+ * `CASE_ACTIONS` is.
+ */
+export const REPORT_STATES = ['OPEN', 'DISMISSED', 'ACTIONED'] as readonly AutomoderatorReportState[];

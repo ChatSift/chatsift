@@ -1,6 +1,7 @@
 import { Heading } from '@chatsift/web-core/components/Heading';
 import Link from 'next/link';
 import { SocialInertBanner } from './_components/SocialInertBanner';
+import { SocialStatsCard } from './_components/SocialStatsCard';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 import { SvgSocial } from '@/components/icons/SvgSocial';
 import { SOCIAL_SECTION_LIST } from '@/utils/socialSections';
@@ -14,6 +15,7 @@ export default async function SocialPage({ params }: PageProps<'/dashboard/[id]/
 				<DashboardCrumbs />
 				<Heading subtitle="Configure Social for your server" title="Social Settings" />
 				<SocialInertBanner />
+				<SocialStatsCard />
 				{SOCIAL_SECTION_LIST.map(({ segment, title, subtitle }) => (
 					<Link
 						className="flex items-center gap-4 rounded-lg border-[1px] border-on-secondary bg-card p-4 hover:bg-on-tertiary dark:border-on-secondary-dark dark:bg-card-dark dark:hover:bg-on-tertiary-dark"

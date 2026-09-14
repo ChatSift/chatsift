@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AutomoderatorStatsCard } from './_components/AutomoderatorStatsCard';
 import { PageSection } from './_components/PageSection';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
@@ -10,6 +11,8 @@ export default async function AutomoderatorPage({ params }: PageProps<'/dashboar
 	return (
 		<div className="space-y-8">
 			<PageHeader subtitle="Configure AutoModerator for your server" title="AutoModerator Settings" />
+
+			<AutomoderatorStatsCard />
 
 			{AUTOMODERATOR_SECTION_GROUPS.map((group) => (
 				<PageSection key={group.title} title={group.title}>

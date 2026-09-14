@@ -1,6 +1,7 @@
 import { Heading } from '@chatsift/web-core/components/Heading';
 import Link from 'next/link';
 import { CustomInstanceUpsell } from './_components/CustomInstanceUpsell';
+import { ModmailStatsCard } from './_components/ModmailStatsCard';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 import { SvgModmail } from '@/components/icons/SvgModmail';
 import { MODMAIL_SECTION_LIST } from '@/utils/modmailSections';
@@ -14,6 +15,7 @@ export default async function ModmailPage({ params }: PageProps<'/dashboard/[id]
 				<DashboardCrumbs />
 				<Heading subtitle="Configure ModMail for your server" title="ModMail Settings" />
 				<CustomInstanceUpsell guildId={id} />
+				<ModmailStatsCard />
 				{MODMAIL_SECTION_LIST.map(({ segment, title, subtitle }) => (
 					<Link
 						className="flex items-center gap-4 rounded-lg border-[1px] border-on-secondary bg-card p-4 hover:bg-on-tertiary dark:border-on-secondary-dark dark:bg-card-dark dark:hover:bg-on-tertiary-dark"

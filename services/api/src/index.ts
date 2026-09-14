@@ -1,8 +1,8 @@
 /**
  * For frontend types, the API is written like a package. This file is NOT the entry point for the API server
- * itself — see `bin.ts` for that (which hands off to `app.ts` for the actual polka setup once the context is
+ * itself -- see `bin.ts` for that (which hands off to `app.ts` for the actual polka setup once the context is
  * initialized). This file exports the route definitions + shared core types for `apps/website` to derive its
- * request/response contracts from via `InferRouteContract<typeof someRoute>` — no `routesInfo` mirror needed.
+ * request/response contracts from via `InferRouteContract<typeof someRoute>` -- no `routesInfo` mirror needed.
  */
 
 export type { InferRouteContract } from './core/contract.js';
@@ -49,6 +49,7 @@ export type {
 export { default as getGrantsRoute } from './routes/guilds/getGrants.js';
 export type { Grant } from './routes/guilds/getGrants.js';
 
+export { default as getModmailStatsRoute } from './routes/modmail/getStats.js';
 export { default as getModmailConfigRoute } from './routes/modmail/config/getConfig.js';
 export { default as updateModmailConfigRoute } from './routes/modmail/config/updateConfig.js';
 
@@ -89,6 +90,7 @@ export { default as getModmailThreadRoute } from './routes/modmail/threads/getTh
 export { default as getModmailThreadMessageEditsRoute } from './routes/modmail/threads/getMessageEdits.js';
 export { default as listModmailThreadsRoute } from './routes/modmail/threads/listThreads.js';
 
+export { default as getSocialStatsRoute } from './routes/social/getStats.js';
 export { default as getSocialConfigRoute } from './routes/social/config/getConfig.js';
 export { default as updateSocialConfigRoute } from './routes/social/config/updateConfig.js';
 
@@ -114,6 +116,7 @@ export { default as listSocialInteractionsRoute } from './routes/social/interact
 export { default as resyncSocialInteractionsRoute } from './routes/social/interactions/resyncInteractions.js';
 export { default as updateSocialInteractionRoute } from './routes/social/interactions/updateInteraction.js';
 
+export { default as getAppealsStatsRoute } from './routes/appeals/getStats.js';
 export { default as getAppealsConfigRoute } from './routes/appeals/config/getConfig.js';
 export type { GetAppealsConfigResult } from './routes/appeals/config/getConfig.js';
 export { default as updateAppealsConfigRoute } from './routes/appeals/config/updateConfig.js';
@@ -149,6 +152,7 @@ export type { AppealBlockReason } from './util/appealsEligibility.js';
 export type { PublicAppeal, PublicAppealAnswer, PublicAppealStatus } from './util/appealsPublic.js';
 export type { GuildSummary } from './util/guildSummary.js';
 
+export { default as getAutomoderatorStatsRoute } from './routes/automoderator/getStats.js';
 export { default as getAutomoderatorConfigRoute } from './routes/automoderator/config/getConfig.js';
 export { default as updateAutomoderatorConfigRoute } from './routes/automoderator/config/updateConfig.js';
 export { default as listAutomoderatorCasesRoute } from './routes/automoderator/cases/listCases.js';

@@ -1,5 +1,5 @@
 /**
- * Actual runtime polka app assembly. Imported dynamically from `bin.ts` *after* `initContext()` has run — several
+ * Actual runtime polka app assembly. Imported dynamically from `bin.ts` *after* `initContext()` has run -- several
  * route modules (transitively, via `util/discordAPI.js`) read `getContext().env` at module-load time, so they
  * can't be statically imported before the context exists.
  */
@@ -40,6 +40,7 @@ import appealsLogoutRoute from './routes/appeals/auth/logout.js';
 import appealsMeRoute from './routes/appeals/auth/me.js';
 import getAppealsConfigRoute from './routes/appeals/config/getConfig.js';
 import updateAppealsConfigRoute from './routes/appeals/config/updateConfig.js';
+import getAppealsStatsRoute from './routes/appeals/getStats.js';
 import decideAppealRoute from './routes/appeals/mod/decideAppeal.js';
 import getAppealRoute from './routes/appeals/mod/getAppeal.js';
 import listAppealsRoute from './routes/appeals/mod/listAppeals.js';
@@ -77,6 +78,7 @@ import updateAutomoderatorConfigRoute from './routes/automoderator/config/update
 import deleteFilterExemptionRoute from './routes/automoderator/filterExemptions/deleteFilterExemption.js';
 import listFilterExemptionsRoute from './routes/automoderator/filterExemptions/listFilterExemptions.js';
 import setFilterExemptionRoute from './routes/automoderator/filterExemptions/setFilterExemption.js';
+import getAutomoderatorStatsRoute from './routes/automoderator/getStats.js';
 import listLegacyBanwordsRoute from './routes/automoderator/legacyBanwords/listLegacyBanwords.js';
 import deleteAutomoderatorLogChannelRoute from './routes/automoderator/logChannels/deleteLogChannel.js';
 import listAutomoderatorLogChannelsRoute from './routes/automoderator/logChannels/listLogChannels.js';
@@ -124,6 +126,7 @@ import listCategoriesRoute from './routes/modmail/categories/listCategories.js';
 import updateCategoryRoute from './routes/modmail/categories/updateCategory.js';
 import getConfigRoute from './routes/modmail/config/getConfig.js';
 import updateConfigRoute from './routes/modmail/config/updateConfig.js';
+import getModmailStatsRoute from './routes/modmail/getStats.js';
 import getInstanceInterestRoute from './routes/modmail/instanceInterest/getInstanceInterest.js';
 import listInstanceInterestRoute from './routes/modmail/instanceInterest/listInstanceInterest.js';
 import registerInstanceInterestRoute from './routes/modmail/instanceInterest/registerInstanceInterest.js';
@@ -146,6 +149,7 @@ import listSocialChannelsRoute from './routes/social/channels/listChannels.js';
 import upsertSocialChannelRoute from './routes/social/channels/upsertChannel.js';
 import getSocialConfigRoute from './routes/social/config/getConfig.js';
 import updateSocialConfigRoute from './routes/social/config/updateConfig.js';
+import getSocialStatsRoute from './routes/social/getStats.js';
 import createSocialInteractionRoute from './routes/social/interactions/createInteraction.js';
 import deleteSocialInteractionRoute from './routes/social/interactions/deleteInteraction.js';
 import listSocialInteractionsRoute from './routes/social/interactions/listInteractions.js';
@@ -219,7 +223,7 @@ export async function startServer(): Promise<void> {
 
 	await attachWebSocketServer(httpServer);
 
-	// Each call is instantiated against its own route's middleware tuple — folding these into a loop over an array
+	// Each call is instantiated against its own route's middleware tuple -- folding these into a loop over an array
 	// literal would force TS to unify all of them under one `TMiddlewares` instantiation, which doesn't typecheck
 	// (see the `unwrapMiddlewareHandle` doc comment in `core/route.ts` for the same heterogeneous-tuple issue).
 	mountRoute(app, createAMARoute);
@@ -280,6 +284,7 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, listThreadsRoute);
 	mountRoute(app, getThreadRoute);
 	mountRoute(app, getThreadMessageEditsRoute);
+	mountRoute(app, getModmailStatsRoute);
 	mountRoute(app, getSocialConfigRoute);
 	mountRoute(app, updateSocialConfigRoute);
 	mountRoute(app, listSocialChannelsRoute);
@@ -299,6 +304,7 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, listSocialLeaderboardRoute);
 	mountRoute(app, publicSocialLeaderboardRoute);
 	mountRoute(app, publicSocialLeaderboardWsTicketRoute);
+	mountRoute(app, getSocialStatsRoute);
 	mountRoute(app, getAutomoderatorConfigRoute);
 	mountRoute(app, updateAutomoderatorConfigRoute);
 	mountRoute(app, listAutomoderatorCasesRoute);
@@ -352,11 +358,13 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, deleteTriggerPunishmentRoute);
 	mountRoute(app, getPunishmentNoticesRoute);
 	mountRoute(app, setPunishmentNoticesRoute);
+	mountRoute(app, getAutomoderatorStatsRoute);
 	mountRoute(app, getAppealsConfigRoute);
 	mountRoute(app, updateAppealsConfigRoute);
 	mountRoute(app, listAppealsRoute);
 	mountRoute(app, getAppealRoute);
 	mountRoute(app, decideAppealRoute);
+	mountRoute(app, getAppealsStatsRoute);
 	mountRoute(app, listUnappealableUsersRoute);
 	mountRoute(app, createUnappealableUserRoute);
 	mountRoute(app, deleteUnappealableUserRoute);

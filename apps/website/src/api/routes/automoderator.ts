@@ -1,10 +1,18 @@
-import type { InferRouteContract, getAutomoderatorConfigRoute, updateAutomoderatorConfigRoute } from '@chatsift/api';
+import type {
+	InferRouteContract,
+	getAutomoderatorConfigRoute,
+	getAutomoderatorStatsRoute,
+	updateAutomoderatorConfigRoute,
+} from '@chatsift/api';
 import { apiFetch } from '@chatsift/web-core/api/fetch';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../queryClient';
 
 type GetAutomoderatorConfigContract = InferRouteContract<typeof getAutomoderatorConfigRoute>;
 export type AutomoderatorConfig = GetAutomoderatorConfigContract['response'];
+
+type GetAutomoderatorStatsContract = InferRouteContract<typeof getAutomoderatorStatsRoute>;
+export type AutomoderatorStats = GetAutomoderatorStatsContract['response'];
 
 type UpdateAutomoderatorConfigContract = InferRouteContract<typeof updateAutomoderatorConfigRoute>;
 export type UpdateAutomoderatorConfigBody = UpdateAutomoderatorConfigContract['body'];
@@ -25,5 +33,12 @@ export function useUpdateAutomoderatorConfig(guildId: string) {
 		onSuccess(data) {
 			queryClient.setQueryData(queryKeys.automoderator.config(guildId), data);
 		},
+	});
+}
+
+export function useAutomoderatorStats(guildId: string) {
+	return useQuery({
+		queryKey: queryKeys.automoderator.stats(guildId),
+		queryFn: async () => apiFetch<AutomoderatorStats>('get', `/v3/guilds/${guildId}/automoderator/stats`),
 	});
 }

@@ -5,6 +5,7 @@ import type {
 	createModmailSnippetRoute,
 	getModmailConfigRoute,
 	getModmailInstanceInterestRoute,
+	getModmailStatsRoute,
 	getModmailSnippetUpdatesRoute,
 	listModmailInstanceInterestRoute,
 	listModmailBlocksRoute,
@@ -25,6 +26,10 @@ import { useGuildInfo } from './guilds';
 
 type GetModmailConfigContract = InferRouteContract<typeof getModmailConfigRoute>;
 export type ModmailConfig = GetModmailConfigContract['response'];
+
+type GetModmailStatsContract = InferRouteContract<typeof getModmailStatsRoute>;
+export type ModmailStats = GetModmailStatsContract['response'];
+export type ModmailCategoryCount = ModmailStats['byCategory'][number];
 
 type UpdateModmailConfigContract = InferRouteContract<typeof updateModmailConfigRoute>;
 export type UpdateModmailConfigBody = UpdateModmailConfigContract['body'];
@@ -365,5 +370,12 @@ export function useModmailInstanceInterestLeads() {
 	return useQuery({
 		queryKey: queryKeys.modmail.instanceInterestLeads,
 		queryFn: async () => apiFetch<ModmailInstanceInterestLead[]>('get', '/v3/modmail/instance-interest'),
+	});
+}
+
+export function useModmailStats(guildId: string) {
+	return useQuery({
+		queryKey: queryKeys.modmail.stats(guildId),
+		queryFn: async () => apiFetch<ModmailStats>('get', `/v3/guilds/${guildId}/modmail/stats`),
 	});
 }

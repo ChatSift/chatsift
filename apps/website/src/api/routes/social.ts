@@ -2,6 +2,7 @@ import type {
 	InferRouteContract,
 	createSocialInteractionRoute,
 	getSocialConfigRoute,
+	getSocialStatsRoute,
 	listSocialChannelsRoute,
 	listSocialInteractionsRoute,
 	listSocialLeaderboardRoute,
@@ -21,6 +22,10 @@ import { queryKeys } from '../queryClient';
 
 type GetSocialConfigContract = InferRouteContract<typeof getSocialConfigRoute>;
 export type SocialConfig = GetSocialConfigContract['response'];
+
+type GetSocialStatsContract = InferRouteContract<typeof getSocialStatsRoute>;
+export type SocialStats = GetSocialStatsContract['response'];
+export type SocialRewardReach = SocialStats['rewards']['reach'][number];
 
 type UpdateSocialConfigContract = InferRouteContract<typeof updateSocialConfigRoute>;
 export type UpdateSocialConfigBody = UpdateSocialConfigContract['body'];
@@ -286,5 +291,12 @@ export function useResyncSocialInteractions(guildId: string) {
 		async onSuccess() {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.social.interactions(guildId) });
 		},
+	});
+}
+
+export function useSocialStats(guildId: string) {
+	return useQuery({
+		queryKey: queryKeys.social.stats(guildId),
+		queryFn: async () => apiFetch<SocialStats>('get', `/v3/guilds/${guildId}/social/stats`),
 	});
 }

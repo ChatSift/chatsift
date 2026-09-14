@@ -56,6 +56,7 @@ export const queryKeys = {
 	modmail: {
 		all: (guildId: string) => ['api', 'modmail', guildId] as const,
 		config: (guildId: string) => ['api', 'modmail', guildId, 'config'] as const,
+		stats: (guildId: string) => ['api', 'modmail', guildId, 'stats'] as const,
 		categories: (guildId: string) => ['api', 'modmail', guildId, 'categories'] as const,
 		panels: (guildId: string) => ['api', 'modmail', guildId, 'panels'] as const,
 		snippets: (guildId: string) => ['api', 'modmail', guildId, 'snippets'] as const,
@@ -80,6 +81,7 @@ export const queryKeys = {
 	social: {
 		all: (guildId: string) => ['api', 'social', guildId] as const,
 		config: (guildId: string) => ['api', 'social', guildId, 'config'] as const,
+		stats: (guildId: string) => ['api', 'social', guildId, 'stats'] as const,
 		channels: (guildId: string) => ['api', 'social', guildId, 'channels'] as const,
 		roles: (guildId: string) => ['api', 'social', guildId, 'roles'] as const,
 		rewards: (guildId: string) => ['api', 'social', guildId, 'rewards'] as const,
@@ -93,6 +95,7 @@ export const queryKeys = {
 	automoderator: {
 		all: (guildId: string) => ['api', 'automoderator', guildId] as const,
 		config: (guildId: string) => ['api', 'automoderator', guildId, 'config'] as const,
+		stats: (guildId: string) => ['api', 'automoderator', guildId, 'stats'] as const,
 		cases: {
 			list: (
 				guildId: string,
@@ -129,6 +132,7 @@ export const queryKeys = {
 		// and they are edited on the same screen -- the same reasoning `appealsConfigChannel` gives for not
 		// splitting the realtime channel.
 		config: (guildId: string) => ['api', 'appeals', guildId, 'config'] as const,
+		stats: (guildId: string) => ['api', 'appeals', guildId, 'stats'] as const,
 		unappealableUsers: (guildId: string) => ['api', 'appeals', guildId, 'unappealable-users'] as const,
 		queue: {
 			list: (guildId: string, filters: { status?: string | undefined; userId?: string | undefined }) =>

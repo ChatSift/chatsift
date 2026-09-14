@@ -510,6 +510,11 @@ CREATE TABLE thread_messages (
 
 CREATE INDEX thread_messages_thread_id_idx ON thread_messages (thread_id);
 
+-- The dashboard's per-guild message counts (#403). `guild_id` has been on this table since the baseline but
+-- had no index of its own, so the only guild-scoped read available was a sequential scan of every message
+-- every guild has ever relayed -- fine while nothing asked that question, not fine on a page load.
+CREATE INDEX thread_messages_guild_id_idx ON thread_messages (guild_id);
+
 -- Sidecar to `thread_messages`, 1:1, same PK-is-FK shape as `scheduled_thread_closes`/
 -- `scheduled_thread_nukes` below -- keeps the load-bearing `thread_messages` table lean while giving
 -- recorded content its own lifecycle. Only written by services/modmail-bot's `insertThreadMessage` when
